@@ -5,10 +5,9 @@ let verifiedStudent=null;
 const verifyButton=document.getElementById('verifyStudent');
 verifyButton.onclick=async()=>{
  const dni=document.getElementById('studentCode').value.trim();
- const password=document.getElementById('studentPassword').value;
  verifyButton.disabled=true;startError.textContent='';
  try{
-  const data=await window.examCloud.identify(dni,password);
+  const data=await window.examCloud.identify(dni);
   verifiedStudent=data.profile;
   for(const [k,v] of Object.entries({verifiedName:data.profile.name,verifiedCareer:data.profile.career,verifiedCycle:data.profile.cycle,verifiedShift:data.profile.shift,verifiedCourses:data.profile.courses.join(', ')}))document.getElementById(k).textContent=v||'No registrado';
   document.getElementById('studentDetails').classList.remove('hidden');
@@ -17,10 +16,10 @@ verifyButton.onclick=async()=>{
   data.exams.forEach(e=>sel.add(new Option(e.title+' ('+e.durationMinutes+' min)',e.id)));
   sel.disabled=!data.exams.length;startExamBtn.disabled=!data.exams.length;
   if(!data.exams.length)startError.textContent='No tienes evaluaciones habilitadas por el docente.';
- }catch(err){verifiedStudent=null;document.getElementById('studentDetails').classList.add('hidden');startExamBtn.disabled=true;startError.textContent='No se pudo validar el acceso. Comprueba el DNI, tu contraseña y la autorización del docente.';console.error(err)}
+ }catch(err){verifiedStudent=null;document.getElementById('studentDetails').classList.add('hidden');startExamBtn.disabled=true;startError.textContent='No se pudo validar el acceso. Verifica el DNI y que el docente haya importado tu matrícula.';console.error(err)}
  finally{verifyButton.disabled=false}
 };
-for(const id of ['studentCode','studentPassword'])document.getElementById(id).addEventListener('input',()=>{verifiedStudent=null;document.getElementById('studentDetails').classList.add('hidden');document.getElementById('examSelect').disabled=true;startExamBtn.disabled=true});
+for(const id of ['studentCode'])document.getElementById(id).addEventListener('input',()=>{verifiedStudent=null;document.getElementById('studentDetails').classList.add('hidden');document.getElementById('examSelect').disabled=true;startExamBtn.disabled=true});
 
 function showToast(m){toast.textContent=m;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
 function registerIncident(type,details=''){if(!monitoringActive||window.examFinished)return;const now=Date.now();if(lastIncident[type]&&now-lastIncident[type]<1200)return;lastIncident[type]=now;const ev={type,details,time:new Date().toISOString()};window.proctoringIncidents.push(ev);window.examCloud?.incident(ev).catch(err=>{console.error('Error guardando incidencia',err);showToast('Error al enviar incidencia. Revisa la conexión.');});incidentCount.textContent=window.proctoringIncidents.length;const c=window.proctoringIncidents.length;if(c>=6){securityBadge.textContent='Revisar';securityBadge.className='badge danger'}else if(c>=2){securityBadge.textContent='Atención';securityBadge.className='badge warning'}showToast('Incidencia registrada: '+type)}
@@ -37,7 +36,7 @@ studentForm.addEventListener('submit',async e=>{
   if(!verifiedStudent)throw Error('Primero valida tu DNI');
   const data={examId:selectedExam.value,dni:document.getElementById('studentCode').value.trim()};
   const result=await window.examCloud.begin(data,'login');
-  if(result.state==='blocked'){startError.textContent='Esta cuenta ya finalizó el único intento. Contacta al docente.';window.stopExamMonitoring?.();return;}
+  if(result.state==='blocked'){startError.textContent='Este DNI ya finalizó el único intento o se inició en otro navegador. Contacta al docente.';window.stopExamMonitoring?.();return;}
   monitoringActive=true;startOverlay.classList.add('hidden');window.startExamClock(result.session);
   if(result.state==='expired')showToast('Se agotó el plazo: se cerrará el intento.');
   else if(result.state==='resume')showToast('Examen recuperado. El temporizador no se reinicia.');

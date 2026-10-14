@@ -57,22 +57,24 @@ exports.setExamAccess=onCall({region:'us-central1'},async r=>{
  });return {ok:true};
 });
 exports.startOrResume=onCall({region:'us-central1'},async r=>{
- if(!r.auth)fail('Inicia sesión','unauthenticated');
- const examId=clean(r.data?.examId);if(!/^[A-Za-z0-9]{15,40}$/.test(examId))fail('Selecciona un examen válido');
- const uid=r.auth.uid,ref=db.doc(`sessions/${examId}_${uid}`),rosterRef=db.doc('roster/'+uid),examRef=db.doc('exams/'+examId);
+ if(!r.auth || r.auth.token.firebase.sign_in_provider!=='anonymous')fail('Sesión requerida','unauthenticated');
+ const examId=clean(r.data?.examId),dni=clean(r.data?.dni);
+ if(!/^[A-Za-z0-9]{15,40}$/.test(examId)||!/^\d{8}$/.test(dni))fail('Datos inválidos');
+ const uid=r.auth.uid,ref=db.doc(`sessions/${examId}_${uid}`),claimRef=db.doc(`dniAttempts/${examId}_${dni}`);
+ const rosterRef=db.doc('rosterByDni/'+dni),examRef=db.doc('exams/'+examId);
  return db.runTransaction(async tx=>{
-  const [existing,roster,ex]=await Promise.all([tx.get(ref),tx.get(rosterRef),tx.get(examRef)]);
-  if(!roster.exists||roster.data().approved!==true)fail('Cuenta no autorizada en el padrón','permission-denied');
+  const [claim,existing,roster,ex]=await Promise.all([tx.get(claimRef),tx.get(ref),tx.get(rosterRef),tx.get(examRef)]);
+  if(!roster.exists||roster.data().approved!==true)fail('DNI no autorizado','permission-denied');
+  if(claim.exists && claim.data().uid!==uid)fail('Este DNI ya tiene un intento asociado a otro navegador. Solicita ayuda al docente.','permission-denied');
   if(existing.exists)return {status:existing.data().status,resumed:true};
+  if(claim.exists)fail('El DNI ya está vinculado a un intento','permission-denied');
   if(!ex.exists||ex.data().status!=='published')fail('Examen no disponible');
-  if(!Array.isArray(roster.data().courses)||!roster.data().courses.includes(ex.data().course))fail('Curso no autorizado','permission-denied');
-  const v=ex.data(),now=Date.now();let allowed=false;
-  if(v.mode==='free')allowed=true;
-  if(v.mode==='manual')allowed=v.open===true;
-  if(v.mode==='scheduled')allowed=dateMillis(v.from)<=now&&now<dateMillis(v.to);
+  const st=roster.data(),v=ex.data();
+  if(!Array.isArray(st.courses)||!st.courses.includes(v.course))fail('Curso no autorizado','permission-denied');
+  const now=Date.now();const allowed=v.mode==='free'||(v.mode==='manual'&&v.open===true)||(v.mode==='scheduled'&&dateMillis(v.from)<=now&&now<dateMillis(v.to));
   if(!allowed)fail('El docente no habilitó el inicio');
-  const st=roster.data();
-  tx.create(ref,{examId,uid,examTitle:v.title,studentName:st.name,studentCode:st.dni,group:st.group||'Matriculado',startedAt:FieldValue.serverTimestamp(),durationMinutes:v.durationMinutes,status:'en_curso',answers:{},incidentCount:0});
+  tx.create(claimRef,{uid,dni,examId,createdAt:FieldValue.serverTimestamp()});
+  tx.create(ref,{examId,uid,examTitle:v.title,studentName:st.name,studentCode:dni,group:[st.career,st.cycle,st.shift].filter(Boolean).join(' · '),startedAt:FieldValue.serverTimestamp(),durationMinutes:v.durationMinutes,status:'en_curso',answers:{},incidentCount:0});
   return {status:'en_curso',resumed:false};
  });
 });
@@ -93,16 +95,18 @@ exports.submitExam=onCall({region:'us-central1'},async r=>{
  });
 });
 
-// Datos personales únicamente después de autenticar con contraseña individual.
+// Advertencia: DNI solo NO autentica identidad. Limitación inherente a este modo.
 exports.getMyAccess=onCall({region:'us-central1'},async r=>{
- if(!r.auth)fail('Inicia sesión','unauthenticated');
- const record=await db.doc('roster/'+r.auth.uid).get();
- if(!record.exists||record.data().approved!==true)fail('Cuenta no autorizada','permission-denied');
+ if(!r.auth || r.auth.token.firebase.sign_in_provider!=='anonymous')fail('Sesión requerida','unauthenticated');
+ const dni=clean(r.data?.dni);if(!/^\d{8}$/.test(dni))fail('DNI inválido');
+ const record=await db.doc('rosterByDni/'+dni).get();
+ if(!record.exists||record.data().approved!==true)fail('DNI no encontrado o no autorizado','permission-denied');
  const p=record.data();
- const [snapshot,attempts]=await Promise.all([db.collection('exams').where('status','==','published').get(),db.collection('sessions').where('uid','==',r.auth.uid).get()]);
- const started=new Set(attempts.docs.map(d=>d.data().examId));const now=Date.now();
+ const [snapshot,claims]=await Promise.all([db.collection('exams').where('status','==','published').get(),db.collection('dniAttempts').where('dni','==',dni).get()]);
+ const attemptMap=new Map(claims.docs.map(d=>[d.data().examId,d.data().uid]));const now=Date.now();
  const exams=snapshot.docs.filter(d=>{const e=d.data();if(!Array.isArray(p.courses)||!p.courses.includes(e.course))return false;
-  return started.has(d.id)||e.mode==='free'||(e.mode==='manual'&&e.open===true)||(e.mode==='scheduled'&&dateMillis(e.from)<=now&&now<dateMillis(e.to));
+  if(attemptMap.has(d.id))return attemptMap.get(d.id)===r.auth.uid;
+  return e.mode==='free'||(e.mode==='manual'&&e.open===true)||(e.mode==='scheduled'&&dateMillis(e.from)<=now&&now<dateMillis(e.to));
  }).map(d=>({id:d.id,title:d.data().title,durationMinutes:d.data().durationMinutes,questions:d.data().questions,course:d.data().course}));
  return {profile:{dni:p.dni,name:p.name,career:p.career||'',cycle:p.cycle||'',shift:p.shift||'',courses:p.courses||[]},exams};
 });

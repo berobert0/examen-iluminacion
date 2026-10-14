@@ -2,8 +2,10 @@ rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
   function admin(){return request.auth != null && request.auth.uid == 'f8AtKNwyyrSUygtmWoqalMOHApX2';}
-  function student(){return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password';}
+  function student(){return request.auth != null && request.auth.token.firebase.sign_in_provider == 'anonymous';}
   match /roster/{id} {allow read,write: if false;}
+  match /rosterByDni/{id} {allow read,write: if false;}
+  match /dniAttempts/{id} {allow read,write: if false;}
   match /examKeys/{id} {allow read,write: if false;}
   match /exams/{id} {
    allow get,list: if admin() || (student() && resource.data.status == 'published');

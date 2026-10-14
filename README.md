@@ -1,21 +1,27 @@
-# Plataforma Protección CCF — Ingreso por DNI
+# Protección CCF — Solo DNI (sin contraseña)
 
-## Qué cambia
-La página del alumno pide **DNI (8 dígitos) y contraseña individual**. Después de autenticar, la función `getMyAccess` consulta `roster/{uid}` y devuelve apellidos y nombres, carrera, ciclo, turno, cursos y exámenes publicados asignados a esos cursos. No hay consulta pública por DNI. El docente administra los cursos y la publicación desde `editor.html`.
+## Comportamiento
+- El estudiante escribe **solo su DNI de 8 dígitos** y pulsa «Consultar DNI y cargar datos».
+- Una Cloud Function consulta el padrón privado `rosterByDni/{dni}`; muestra apellidos y nombres, carrera, ciclo, turno y cursos. Solo ofrece exámenes publicados y habilitados por el docente para sus cursos.
+- Firebase Anonymous Authentication mantiene la misma sesión en el navegador. El primer comienzo crea atómicamente `dniAttempts/{examId}_{dni}` y `sessions/{examId}_{uid}`. Volver al **mismo navegador** continúa el intento y el tiempo original. Otro navegador queda bloqueado para ese DNI y examen.
+- Las notas se calculan en Cloud Functions y los incidentes se registran en Firestore.
 
-## MUY IMPORTANTE: instalación
-1. **No subas automáticamente todo el ZIP a GitHub.** En GitHub Pages solo coloca: `index.html`, `admin.html`, `editor.html`, `styles.css`, `app.js`, `proctoring.js`, `cloud.js`, `admin.js`, `editor.js`. **Conserva tu `firebase-config.js` real que funciona** (el incluido tiene marcadores de ejemplo).
-2. Despliega `functions/index.js` con Firebase CLI y `firebase deploy --only functions`, tras instalar `npm --prefix functions install`. Firebase Cloud Functions normalmente exige **plan Blaze**. El backend anterior también debe actualizarse porque se agrega `getMyAccess` y comprobación de cursos.
-3. Publica las reglas de `firestore.rules` desde Firebase (o `firebase deploy --only firestore:rules`). Conservan el acceso privado a `roster`. El UID del docente debe ser el autorizado para tu instalación.
-4. **El padrón NO se importa automáticamente ni se debe subir a GitHub.** Importa por Admin SDK, desde equipo privado, los campos de matrícula verificados. Usa `private-import/import-roster.js` de forma local con el CSV: `dni,nombre,carrera,ciclo,turno,cursos,clave`. `cursos` se separa por `|`. Las fotografías proporcionadas NO se han transcrito; es necesario revisar el padrón original.
-5. La cuenta Authentication se crea como `DNI@acceso.examen.invalid` **internamente**, sin pedir correo al alumno, con clave privada individual asignada por el docente. No se envían cuentas por correo de manera automática. Los estudiantes nunca ven el correo sintético. Si cuentas previas utilizan correos institucionales, necesitarán migración o cuentas nuevas; probar primero con cuentas de ensayo.
-6. Desde `editor.html` crea un examen con el campo **Curso / unidad didáctica**. Debe coincidir exactamente con uno de los `cursos` del estudiante en el padrón. El docente debe publicarlo y abrirlo manualmente o elegir modo libre/programado.
-7. Prueba con dos cuentas ficticias: acceso autorizado; rechazo de DNI incorrecto; lista filtrada; reingreso con tiempo que no reinicia; intento finalizado bloqueado; nota en panel.
+## ADVERTENCIA CRÍTICA SOBRE IDENTIDAD Y PRIVACIDAD
+**Un DNI NO es una contraseña y NO prueba que quien lo escribe sea su titular.** Conocer el DNI de un alumno permite consultar su información académica y comenzar su único intento, incluso bloquearlo. Esta variante es un prototipo para entornos supervisados y **NO es adecuada para una evaluación real no supervisada** ni para exponer datos personales sin un segundo factor. Si es necesario, utiliza un código privado/contraseña, un inicio de sesión escolar o valida presencialmente la identidad antes de abrir el examen. El usuario solicitó expresamente eliminar la contraseña; se hace con esta limitación explícita. Sin contraseña no es posible reanudar desde otro dispositivo sin desbloqueo seguro del docente.
 
-## Seguridad y límites
-- DNI por sí solo **NO autentica** al estudiante: se exige contraseña individual. No se publican DNI, teléfonos ni fotografías del padrón.
-- El intento único actual es por **cuenta Firebase + examen**. Para impedir múltiples cuentas con el mismo DNI, el alta debe hacerla exclusivamente el administrador desde el script y comprobar DNI únicos antes de importar.
-- Las incidencias son detecciones del navegador, no vigilancia infalible.
-- Las respuestas correctas están en la colección privada `examKeys`, corregidas en Cloud Functions.
-- Padrón, credenciales del Admin SDK y contraseñas nunca se suben a GitHub. Si `private-import` ya está público en el repositorio, verifica que no contenga datos personales o secretos y retíralos (incluido historial si fuera necesario).
-- Código preparado y validado sintácticamente, **no probado en tu Firebase real**. Haz una copia y prueba en entorno de ensayo.
+## Instalación
+1. **Haz copia del proyecto.** No publiques ni sustituyas la versión en producción antes de probar. No subas el ZIP completo a GitHub.
+2. Publica en GitHub Pages solo `index.html`, `admin.html`, `editor.html`, `styles.css`, `app.js`, `proctoring.js`, `cloud.js`, `admin.js`, `editor.js`. **Conserva el `firebase-config.js` real** ya configurado; el ZIP contiene solamente `firebase-config.example.js`.
+3. En Firebase Authentication habilita **Anonymous** además de mantener **Email/Password** para el docente. Sin Anonymous, los alumnos no podrán entrar.
+4. Activa plan compatible y despliega `functions/index.js` con Firebase CLI: `npm --prefix functions install` y `firebase deploy --only functions`. Si cambias de cuenta, verifica el ID del proyecto con `firebase use`. **Cloud Functions generalmente requiere Blaze**.
+5. Publica las reglas nuevas `firestore.rules` mediante `firebase deploy --only firestore:rules` o la consola, solo tras revisarlas.
+6. **Importa el padrón de manera privada:** `private-import/import-roster.js` requiere credenciales seguras de Admin SDK y un CSV `dni,nombre,carrera,ciclo,turno,cursos`. No publiques CSV, credenciales ni la carpeta private-import en GitHub. Las fotografías de las listas no han sido transcritas ni importadas.
+7. Desde el panel docente crea examen, asigna `course` exactamente igual a `cursos` del padrón y publica/abre el acceso.
+8. Prueba con datos FICTICIOS: consulta DNI, autocompletado, inicio único, reanudación en mismo navegador, bloqueo en segundo navegador, tiempo que no se reinicia, incidentes y nota. Revisa políticas de privacidad y obtén los consentimientos necesarios antes de aplicar a estudiantes.
+
+## Notas técnicas
+- Las cuentas anteriores `DNI@acceso.examen.invalid` dejan de utilizarse para el ingreso de estudiantes; el administrador mantiene su cuenta con email/contraseña.
+- Las reglas impiden que un alumno escriba directamente en `rosterByDni`, `dniAttempts` o `examKeys`. Los controles de servidor asocian un solo intento a cada DNI y examen.
+- El bloqueo de segundo navegador protege la unicidad del intento, pero puede bloquear a un estudiante legítimo cuyo DNI conozca otra persona; requiere procedimiento de soporte del docente.
+- La detección de incidencias en navegador no es infalible y no graba la cámara.
+- Código revisado a nivel sintáctico, **sin prueba real en tu Firebase**.

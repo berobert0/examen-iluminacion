@@ -9,15 +9,14 @@
 <div id="startOverlay" class="overlay">
   <div class="start-card">
     <div class="shield">💡</div><h1>Proyecto de Sistema de Iluminación</h1>
-    <p>Ingresa tu DNI y contraseña individual para consultar tus datos académicos. Luego selecciona una evaluación autorizada y habilitada por el docente. La duración la configura el docente. Un solo intento por DNI autorizado y cuenta asignada. Si sales, puedes regresar, pero el reloj NO se reinicia.</p>
+    <p>Ingresa solamente tu DNI para consultar los datos académicos registrados en el padrón. Luego selecciona una evaluación autorizada y habilitada por el docente. La duración la configura el docente. Un intento por DNI y evaluación, vinculado a este navegador. Si sales, puedes regresar, pero el reloj NO se reinicia.</p>
     <form id="studentForm" autocomplete="on">
 <label class="field-label" for="studentCode">DNI del estudiante *</label><input class="student-input" id="studentCode" name="studentCode" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required placeholder="8 dígitos" autocomplete="off">
-      <label class="field-label" for="studentPassword">Contraseña individual *</label><input class="student-input" type="password" id="studentPassword" minlength="8" required autocomplete="current-password" placeholder="Contraseña entregada por el docente">
-      <button type="button" class="btn secondary large" id="verifyStudent">Validar DNI y cargar datos</button>
+      <button type="button" class="btn secondary large" id="verifyStudent">Consultar DNI y cargar datos</button>
       <div id="studentDetails" class="requirements hidden" aria-live="polite"><strong>Datos de matrícula verificados</strong><div>Estudiante: <strong id="verifiedName"></strong></div><div>Carrera: <strong id="verifiedCareer"></strong></div><div>Ciclo: <strong id="verifiedCycle"></strong></div><div>Turno: <strong id="verifiedShift"></strong></div><div>Curso(s): <strong id="verifiedCourses"></strong></div></div>
-      <label class="field-label" for="examSelect">Evaluación habilitada por el docente *</label><select class="student-input" id="examSelect" required disabled><option value="">Primero valide su DNI</option></select>
-      <div class="requirements"><div>✓ Solicita permiso de cámara y pantalla completa</div><div>✓ Registra cambios de pestaña y salidas de pantalla completa</div><div>✓ Bloqueo básico de copiar, pegar, imprimir y menú contextual</div><div>✓ Cierre automático al cumplirse 30 minutos</div></div>
-      <label class="consent"><input id="consentCheck" type="checkbox" required><span>Acepto el uso de la cámara durante la prueba y el almacenamiento en Firebase de mi identificación, respuestas e incidencias para revisión docente. La cámara no se graba ni se envía. Mi intento conservará el tiempo configurado por el docente aunque cierre la página. La vista previa de cámara no se graba ni se envía.</span></label>
+      <label class="field-label" for="examSelect">Evaluación habilitada por el docente *</label><select class="student-input" id="examSelect" required disabled><option value="">Primero consulte su DNI</option></select>
+      <div class="requirements"><div>✓ Solicita permiso de cámara y pantalla completa</div><div>✓ Registra cambios de pestaña y salidas de pantalla completa</div><div>✓ Bloqueo básico de copiar, pegar, imprimir y menú contextual</div><div>✓ El plazo configurado no se reinicia al volver</div></div>
+      <label class="consent"><input id="consentCheck" type="checkbox" required><span>Acepto el uso de la cámara durante la prueba y el almacenamiento en Firebase de mi identificación, respuestas e incidencias para revisión docente. La cámara no se graba ni se envía. Mi intento conservará el tiempo configurado por el docente aunque cierre la página. Entiendo que el DNI por sí solo no demuestra mi identidad. La vista previa de cámara no se graba ni se envía.</span></label>
       <p id="startError" class="error" role="alert"></p>
       <button type="submit" id="startExamBtn" class="btn primary large" disabled>Entrar / continuar examen</button>
     </form>
