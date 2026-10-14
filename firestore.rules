@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
   // Sustituir por el UID real del docente.
-  function admin(){return request.auth != null && request.auth.uid == 'REEMPLAZAR_UID_DOCENTE';}
+  function admin(){return request.auth != null && request.auth.uid == 'f8AtKNwyyrSUygtmWoqalMOHApX2';}
   function student(id){return request.auth != null && request.auth.uid == id && request.auth.token.firebase.sign_in_provider == 'password';}
   function active(){return resource.data.status == 'en_curso' && request.time < resource.data.startedAt + duration.value(30,'m');}
   match /sessions/{id} {
@@ -29,31 +29,31 @@ service cloud.firestore {
     && request.resource.data.durationMinutes == resource.data.durationMinutes
     && (
      (active() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers'])
-       && request.resource.data.answers is map && request.resource.data.answers.size() <= 15)
+       && request.resource.data.answers is map && request.resource.data.answers.size() <= 15
+       && request.resource.data.answers.keys().hasOnly(['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15']))
      ||
      (active() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['incidentCount'])
        && request.resource.data.incidentCount == resource.data.incidentCount + 1)
      ||
      (resource.data.status == 'en_curso'
-       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','endedAt','reason','answeredCount','questionCount','score20'])
+       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','endedAt','reason'])
        && request.resource.data.status in ['finalizado','agotado']
        && request.resource.data.endedAt == request.time
        && request.resource.data.reason is string
-       && request.resource.data.answeredCount is int
-       && request.resource.data.questionCount == 15
-       && request.resource.data.score20 is number)
+       && request.resource.data.reason in ['Entrega voluntaria','Tiempo agotado'])
     );
    allow delete: if false;
    match /incidents/{incidentId} {
     allow read: if admin();
     allow create: if student(id)
      && get(/databases/$(database)/documents/sessions/$(id)).data.status == 'en_curso'
+     && request.time < get(/databases/$(database)/documents/sessions/$(id)).data.startedAt + duration.value(30,'m')
      && request.resource.data.uid == id
      && request.resource.data.createdAt == request.time
      && request.resource.data.keys().hasOnly(['uid','type','details','clientTime','createdAt'])
-     && request.resource.data.type is string
-     && request.resource.data.details is string
-     && request.resource.data.clientTime is string;
+     && request.resource.data.type is string && request.resource.data.type.size() <= 120
+     && request.resource.data.details is string && request.resource.data.details.size() <= 400
+     && request.resource.data.clientTime is string && request.resource.data.clientTime.size() <= 60;
     allow update,delete: if false;
    }
   }

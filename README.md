@@ -25,3 +25,7 @@
 - Las respuestas se envían inmediatamente; cambios sin conexión pueden no quedar registrados. Un cierre repentino puede impedir guardar la última incidencia. Comprueba el aviso rojo de sincronización.
 - Las reglas no permiten un segundo intento una vez que la sesión concluyó. Un administrador que necesite reiniciar a un estudiante debe gestionar esto mediante un backend administrativo controlado; no se ofrece botón inseguro de borrado en HTML.
 - La supervisión HTML no bloquea capturas externas o manipulación avanzada. No se graban ni transmiten imágenes de cámara. Informa al alumnado sobre privacidad, finalidad y retención de datos.
+
+
+## Seguridad de notas (importante)
+La nota que calcula el navegador es **provisional y no confiable**. No se guarda `score20` desde el alumno. Para un resultado oficial, evaluar respuestas en un backend confiable (Cloud Functions o servidor propio) y escribir la nota allí con credenciales administrativas. Los alumnos que creen varias cuentas pueden generar varios intentos: proporcionar cuentas individuales preaprovisionadas y deshabilitar el registro público para un control estricto. El administrador debe reemplazar `REEMPLAZAR_UID_DOCENTE` con el UID real antes de publicar reglas. Verificar los permisos con el simulador de reglas y pruebas reales.

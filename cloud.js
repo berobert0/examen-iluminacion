@@ -21,7 +21,7 @@ window.examCloud={
  },
  async saveAnswer(qid,index){if(!ref)throw Error('No hay sesión activa');await ref.update({['answers.'+qid]:index});},
  async incident(ev){if(!ref)return;const batch=db.batch();batch.set(ref.collection('incidents').doc(),{uid:auth.currentUser.uid,type:String(ev.type).slice(0,120),details:String(ev.details||'').slice(0,400),clientTime:ev.time,createdAt:firebase.firestore.FieldValue.serverTimestamp()});batch.update(ref,{incidentCount:firebase.firestore.FieldValue.increment(1)});await batch.commit()},
- async finish(report){if(!ref)throw Error('Sin sesión');await ref.update({status:report.motivo==='Tiempo agotado'?'agotado':'finalizado',endedAt:firebase.firestore.FieldValue.serverTimestamp(),reason:report.motivo,answeredCount:report.respondidas,questionCount:report.total,score20:report.notaSobre20})},
+ async finish(report){if(!ref)throw Error('Sin sesión');await ref.update({status:report.motivo==='Tiempo agotado'?'agotado':'finalizado',endedAt:firebase.firestore.FieldValue.serverTimestamp(),reason:report.motivo})},
  async getSession(){if(!ref)throw Error('Sin sesión');return mapper(await ref.get({source:'server'}))}
 };
 })();
