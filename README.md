@@ -1,14 +1,29 @@
-# Examen: Proyecto de Sistema de Iluminación
+# Examen de Proyecto de Sistema de Iluminación — GitHub Pages + Firebase
 
-Examen web de 15 preguntas (selección única) con identificación obligatoria del estudiante, consentimiento, vista previa de cámara, pantalla completa, registro de incidencias y cronómetro de 30 minutos desde el inicio efectivo. Al finalizar calcula la nota sobre 20 y permite descargar un archivo JSON con estudiante, respuestas e incidencias.
+## Archivos
+- `index.html`: examen del alumno (30 minutos).
+- `app.js`, `proctoring.js`, `styles.css`: preguntas, temporizador, interfaz e incidencias.
+- `cloud.js`, `firebase-config.js`: almacenamiento centralizado de sesiones e incidencias.
+- `admin.html`, `admin.js`: panel privado del docente, filtrado por reglas de Firebase.
+- `firestore.rules`: reglas de base de datos **que debes publicar en Firebase**, no se aplican con solo subirlas a GitHub.
 
-## Cómo ejecutar
+## Configuración obligatoria
+1. Crea un proyecto en https://console.firebase.google.com/ y registra una **aplicación Web**. Copia sus valores de configuración en `firebase-config.js`.
+2. Ve a **Authentication > Sign-in method**. Habilita **Anonymous** (estudiantes) y **Email/Password** (docentes).
+3. En **Authentication > Users**, añade una cuenta con correo/contraseña para el docente. Copia su **UID**.
+4. Ve a **Firestore Database** y crea una base de datos. En la pestaña **Rules**, pega el contenido de `firestore.rules`, reemplaza `REEMPLAZAR_UID_DOCENTE` por el UID real del docente, y pulsa **Publish**. Evita usar reglas de modo prueba (acceso abierto).
+5. En **Authentication > Settings > Authorized domains**, añade `berobert0.github.io` si no aparece.
+6. Sube los archivos HTML, CSS, JS y config al directorio raíz del repositorio GitHub Pages. El archivo `firestore.rules` es documentación para pegar en Firebase.
+7. Prueba con un estudiante en `https://berobert0.github.io/examen-iluminacion/` y verifica en `https://berobert0.github.io/examen-iluminacion/admin.html` los registros entrando como docente.
 
-1. Mantén `index.html`, `styles.css`, `app.js` y `proctoring.js` en la misma carpeta.
-2. Utiliza HTTPS o un servidor local, por ejemplo desde la carpeta: `python -m http.server 8000` y abre `http://localhost:8000`.
-3. Completa nombre, código y grupo; acepta el consentimiento; permite cámara y pantalla completa. En ese momento inicia el reloj.
-4. Al finalizar, descarga el reporte JSON; el navegador **no lo envía automáticamente** a un docente.
+## Datos almacenados
+Nombre, código, grupo, marcas de tiempo, estado del examen, puntuación resumida (al concluir) e incidencias con fecha y tipo. **No se almacenan vídeo, audio ni capturas.** Cada incidencia se envía al ocurrir. En pérdida de conexión o cierre repentino puede haber eventos no enviados: no equivale a vigilancia infalible.
 
-## Límites importantes
-
-El navegador puede registrar algunas incidencias, pero **no garantiza** que el usuario no copie, capture pantalla, altere JavaScript o cierre la página. No guarda video, no reconoce personas y no almacena respuestas en un servidor. Un reinicio de página reinicia el examen y pierde el intento; para impedirlo y hacer la evaluación confiable es imprescindible un backend con autenticación, almacenamiento y reloj del servidor. Adapta las preguntas y revisa el consentimiento y las normas locales de privacidad antes de usarlo en clases.
+## Consideraciones esenciales
+- No será funcional hasta configurar Firebase y publicar las reglas de Firestore.
+- El panel docente exige una cuenta autorizada por UID. No basta con ocultar el enlace o añadir contraseña en HTML.
+- Las protecciones del navegador no evitan manipulación avanzada ni el uso de otros dispositivos. Un estudiante técnico podría modificar JS o producir eventos falsos. Para evaluaciones de alta importancia se requiere backend confiable y controles adicionales.
+- Las respuestas correctas se incluyen en el JavaScript público. No uses esta versión para exámenes de alta seguridad.
+- Publica una política de privacidad y comunica la finalidad y conservación de los datos; limita acceso y define tiempo de borrado, especialmente con estudiantes menores.
+- Los datos de Firebase no están alojados en GitHub: GitHub solo hospeda el frontend.
+- El temporizador sigue corriendo durante cambios de pestaña; no se detiene al ocultarse.

@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // CAMBIA este UID por el de la cuenta docente en Firebase Authentication.
+    function isAdmin() { return request.auth != null && request.auth.uid == 'REEMPLAZAR_UID_DOCENTE'; }
+    function isStudent() { return request.auth != null && request.auth.token.firebase.sign_in_provider == 'anonymous'; }
+    function owner(sessionId) {
+      return isStudent() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uid == request.auth.uid;
+    }
+    match /sessions/{sessionId} {
+      allow read: if isAdmin();
+      allow create: if isStudent()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'en_curso'
+        && request.resource.data.durationMinutes == 30
+        && request.resource.data.incidentCount == 0
+        && request.resource.data.keys().hasOnly(['uid','studentName','studentCode','group','startedAt','clientStartedAt','durationMinutes','status','incidentCount'])
+        && request.resource.data.studentName is string
+        && request.resource.data.studentCode is string
+        && request.resource.data.group is string;
+      allow update: if owner(sessionId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.studentCode == resource.data.studentCode
+        && request.resource.data.studentName == resource.data.studentName
+        && request.resource.data.group == resource.data.group
+        && request.resource.data.durationMinutes == resource.data.durationMinutes
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','endedAt','reason','answeredCount','questionCount','score20','incidentCount'])
+        && request.resource.data.incidentCount is int
+        && request.resource.data.incidentCount >= resource.data.incidentCount;
+      allow delete: if false;
+      match /incidents/{incidentId} {
+        allow read: if isAdmin();
+        allow create: if owner(sessionId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid','type','details','clientTime','createdAt'])
+          && request.resource.data.type is string
+          && request.resource.data.details is string
+          && request.resource.data.clientTime is string;
+        allow update, delete: if false;
+      }
+    }
+  }
+}
