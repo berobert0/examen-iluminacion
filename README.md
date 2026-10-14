@@ -1,26 +1,21 @@
-# Plataforma de evaluaciones · Editor docente
+# Plataforma Protección CCF — Ingreso por DNI
 
-## Archivos de GitHub Pages
-Sube `index.html`, `admin.html`, `editor.html`, `styles.css`, `app.js`, `proctoring.js`, `cloud.js`, `admin.js`, `editor.js`, `firebase-config.js` a la RAÍZ del repositorio. **No subas** la carpeta `private-import`, `functions/`, la clave de respuestas ni datos personales. `firebase-config.js` del paquete lleva valores de ejemplo; conserva tu configuración real de GitHub al actualizar.
+## Qué cambia
+La página del alumno pide **DNI (8 dígitos) y contraseña individual**. Después de autenticar, la función `getMyAccess` consulta `roster/{uid}` y devuelve apellidos y nombres, carrera, ciclo, turno, cursos y exámenes publicados asignados a esos cursos. No hay consulta pública por DNI. El docente administra los cursos y la publicación desde `editor.html`.
 
-## Configurar Firebase (requerido para que funcione)
-1. Haz una copia de la versión anterior. Prueba todo en un proyecto de Firebase de ensayo antes de sustituir la versión en uso.
-2. En Firebase Authentication habilita Email/Password y registra la cuenta docente autorizada por UID. El UID que hay en las reglas y `functions/index.js` corresponde al que facilitaste; cámbialo si el administrador cambia.
-3. Actualiza las reglas de Firestore con `firestore.rules` (usa Firebase CLI `firebase deploy --only firestore:rules`, o pégalas completas en la consola). **Estas reglas sustituyen las anteriores**.
-4. Para las funciones necesitas Firebase CLI, Node.js y Firebase Cloud Functions (habitualmente plan Blaze). Desde la carpeta del proyecto: `npm --prefix functions install`, `firebase login`, `firebase use examen-iluminacion` y `firebase deploy --only functions`. Verifica que la región sea `us-central1`.
-5. Las colecciones `exams`, `examKeys` y `sessions` se crean automáticamente al utilizar el editor y las funciones. `examKeys` es privada: nunca la expongas en HTML/JS.
-6. Importa el padrón a Firestore de forma privada en `roster/{UID_DEL_ESTUDIANTE}`, con campos `{name,dni,group,approved:true}`; usa el script privado de la carpeta `private-import` después de revisarlo. No subas esos documentos ni su CSV a GitHub.
-7. Abre `editor.html` como docente, inicia sesión, crea un examen con preguntas y respuestas correctas, guarda borrador, publica, y configura acceso manual/libre/programado. Luego los alumnos podrán elegir exámenes publicados en `index.html`.
+## MUY IMPORTANTE: instalación
+1. **No subas automáticamente todo el ZIP a GitHub.** En GitHub Pages solo coloca: `index.html`, `admin.html`, `editor.html`, `styles.css`, `app.js`, `proctoring.js`, `cloud.js`, `admin.js`, `editor.js`. **Conserva tu `firebase-config.js` real que funciona** (el incluido tiene marcadores de ejemplo).
+2. Despliega `functions/index.js` con Firebase CLI y `firebase deploy --only functions`, tras instalar `npm --prefix functions install`. Firebase Cloud Functions normalmente exige **plan Blaze**. El backend anterior también debe actualizarse porque se agrega `getMyAccess` y comprobación de cursos.
+3. Publica las reglas de `firestore.rules` desde Firebase (o `firebase deploy --only firestore:rules`). Conservan el acceso privado a `roster`. El UID del docente debe ser el autorizado para tu instalación.
+4. **El padrón NO se importa automáticamente ni se debe subir a GitHub.** Importa por Admin SDK, desde equipo privado, los campos de matrícula verificados. Usa `private-import/import-roster.js` de forma local con el CSV: `dni,nombre,carrera,ciclo,turno,cursos,clave`. `cursos` se separa por `|`. Las fotografías proporcionadas NO se han transcrito; es necesario revisar el padrón original.
+5. La cuenta Authentication se crea como `DNI@acceso.examen.invalid` **internamente**, sin pedir correo al alumno, con clave privada individual asignada por el docente. No se envían cuentas por correo de manera automática. Los estudiantes nunca ven el correo sintético. Si cuentas previas utilizan correos institucionales, necesitarán migración o cuentas nuevas; probar primero con cuentas de ensayo.
+6. Desde `editor.html` crea un examen con el campo **Curso / unidad didáctica**. Debe coincidir exactamente con uno de los `cursos` del estudiante en el padrón. El docente debe publicarlo y abrirlo manualmente o elegir modo libre/programado.
+7. Prueba con dos cuentas ficticias: acceso autorizado; rechazo de DNI incorrecto; lista filtrada; reingreso con tiempo que no reinicia; intento finalizado bloqueado; nota en panel.
 
-## Comportamiento
-- Los exámenes publicados son inmutables para preservar las notas. Para modificar uno, prepara una nueva evaluación.
-- Un intento por combinación **cuenta Firebase + examen**; la sesión se guarda en `sessions/{examId}_{uid}`. Las respuestas se guardan durante el plazo original, y el cierre/envío calcula nota sobre 20 en Cloud Functions.
-- El control de acceso restringe **nuevos** inicios. Una sesión existente puede retomarse hasta su límite sin reiniciar el reloj.
-- Las incidencias son eventos detectados por el navegador, no pruebas absolutas de conducta.
-- El padrón y la correspondencia DNI/UID deben ser gestionados por el docente. Un DNI escrito en un campo del navegador NO prueba identidad; utiliza cuentas individuales controladas y no permitas auto-registros abiertos.
-- La política de privacidad, retención de datos, permisos de cámara, cumplimiento normativo, respaldos y derechos de los estudiantes deben definirse antes de producción.
-
-## Advertencias
-**No basta con subir el ZIP a GitHub**. Hasta desplegar Cloud Functions, las reglas y el padrón, el editor y los intentos no funcionarán. No verificados contra tu Firebase real. El panel de administración original usa una lista global de sesiones con límite de 300 resultados y no aplica filtros por examen. Prueba con cuentas de ensayo.
-
-`firebase-config.js` debe conservar los valores REALES configurados en tu instalación previa; no compartas contraseñas ni claves de servicio.
+## Seguridad y límites
+- DNI por sí solo **NO autentica** al estudiante: se exige contraseña individual. No se publican DNI, teléfonos ni fotografías del padrón.
+- El intento único actual es por **cuenta Firebase + examen**. Para impedir múltiples cuentas con el mismo DNI, el alta debe hacerla exclusivamente el administrador desde el script y comprobar DNI únicos antes de importar.
+- Las incidencias son detecciones del navegador, no vigilancia infalible.
+- Las respuestas correctas están en la colección privada `examKeys`, corregidas en Cloud Functions.
+- Padrón, credenciales del Admin SDK y contraseñas nunca se suben a GitHub. Si `private-import` ya está público en el repositorio, verifica que no contenga datos personales o secretos y retíralos (incluido historial si fuera necesario).
+- Código preparado y validado sintácticamente, **no probado en tu Firebase real**. Haz una copia y prueba en entorno de ensayo.

@@ -10,13 +10,14 @@ const clean=s=>String(s||'').trim();
 const dateMillis=t=>t&&typeof t.toMillis==='function'?t.toMillis():null;
 const validOptions=q=>Array.isArray(q.options)&&q.options.length===4&&q.options.every(o=>typeof o==='string'&&o.trim().length>=1&&o.length<=500);
 function validateExam(data){
- const title=clean(data.title),questions=data.questions;
+ const title=clean(data.title),questions=data.questions,course=clean(data.course);
  if(title.length<5||title.length>150)fail('Título inválido');
+ if(course.length<3||course.length>120)fail('Indica el curso autorizado');
  if(!Array.isArray(questions)||questions.length<1||questions.length>60)fail('Entre 1 y 60 preguntas');
  questions.forEach((q,i)=>{if(!q||typeof q.text!=='string'||q.text.trim().length<5||q.text.length>1000||!validOptions(q)||!Number.isInteger(q.correct)||q.correct<0||q.correct>3)fail('Pregunta '+(i+1)+' inválida')});
  const duration=Number(data.durationMinutes);
  if(!Number.isInteger(duration)||duration<5||duration>180)fail('Duración entre 5 y 180 minutos');
- return {title,durationMinutes:duration,questions};
+ return {title,course,durationMinutes:duration,questions};
 }
 exports.saveExam=onCall({region:'us-central1'},async r=>{
  if(!isAdmin(r))fail('Solo el docente puede editar','permission-denied');
@@ -27,7 +28,7 @@ exports.saveExam=onCall({region:'us-central1'},async r=>{
   if(id&&!old.exists)fail('Evaluación no encontrada','not-found');
   if(old.exists&&old.data().status!=='draft')fail('Una evaluación publicada ya no se puede editar');
   const publicQuestions=v.questions.map((q,i)=>({id:String(i+1),text:q.text.trim(),options:q.options.map(o=>o.trim())}));
-  tx.set(ref,{title:v.title,durationMinutes:v.durationMinutes,questions:publicQuestions,status:'draft',mode:'manual',open:false,from:null,to:null,updatedAt:FieldValue.serverTimestamp(),...(old.exists?{}:{createdAt:FieldValue.serverTimestamp()})},{merge:true});
+  tx.set(ref,{title:v.title,course:v.course,durationMinutes:v.durationMinutes,questions:publicQuestions,status:'draft',mode:'manual',open:false,from:null,to:null,updatedAt:FieldValue.serverTimestamp(),...(old.exists?{}:{createdAt:FieldValue.serverTimestamp()})},{merge:true});
   tx.set(db.doc('examKeys/'+ref.id),{answers:Object.fromEntries(v.questions.map((q,i)=>[String(i+1),q.correct]))});
  });
  return {id:ref.id};
@@ -37,7 +38,7 @@ exports.getExamEditor=onCall({region:'us-central1'},async r=>{
  const id=clean(r.data?.id);if(!id)fail('Falta ID');
  const [a,k]=await Promise.all([db.doc('exams/'+id).get(),db.doc('examKeys/'+id).get()]);
  if(!a.exists||!k.exists)fail('Evaluación no encontrada');
- const v=a.data();return {id,title:v.title,durationMinutes:v.durationMinutes,status:v.status,questions:v.questions.map(q=>({...q,correct:k.data().answers[q.id]}))};
+ const v=a.data();return {id,title:v.title,course:v.course,durationMinutes:v.durationMinutes,status:v.status,questions:v.questions.map(q=>({...q,correct:k.data().answers[q.id]}))};
 });
 exports.setExamAccess=onCall({region:'us-central1'},async r=>{
  if(!isAdmin(r))fail('Solo docente','permission-denied');
@@ -64,6 +65,7 @@ exports.startOrResume=onCall({region:'us-central1'},async r=>{
   if(!roster.exists||roster.data().approved!==true)fail('Cuenta no autorizada en el padrón','permission-denied');
   if(existing.exists)return {status:existing.data().status,resumed:true};
   if(!ex.exists||ex.data().status!=='published')fail('Examen no disponible');
+  if(!Array.isArray(roster.data().courses)||!roster.data().courses.includes(ex.data().course))fail('Curso no autorizado','permission-denied');
   const v=ex.data(),now=Date.now();let allowed=false;
   if(v.mode==='free')allowed=true;
   if(v.mode==='manual')allowed=v.open===true;
@@ -89,4 +91,18 @@ exports.submitExam=onCall({region:'us-central1'},async r=>{
   tx.update(ref,{status:expired?'agotado':'finalizado',endedAt:FieldValue.serverTimestamp(),reason:expired?'Tiempo agotado':'Entrega voluntaria',score20,correctCount:hits,questionCount:count,answeredCount:Object.keys(raw).length});
   return {status:expired?'agotado':'finalizado',score20};
  });
+});
+
+// Datos personales únicamente después de autenticar con contraseña individual.
+exports.getMyAccess=onCall({region:'us-central1'},async r=>{
+ if(!r.auth)fail('Inicia sesión','unauthenticated');
+ const record=await db.doc('roster/'+r.auth.uid).get();
+ if(!record.exists||record.data().approved!==true)fail('Cuenta no autorizada','permission-denied');
+ const p=record.data();
+ const [snapshot,attempts]=await Promise.all([db.collection('exams').where('status','==','published').get(),db.collection('sessions').where('uid','==',r.auth.uid).get()]);
+ const started=new Set(attempts.docs.map(d=>d.data().examId));const now=Date.now();
+ const exams=snapshot.docs.filter(d=>{const e=d.data();if(!Array.isArray(p.courses)||!p.courses.includes(e.course))return false;
+  return started.has(d.id)||e.mode==='free'||(e.mode==='manual'&&e.open===true)||(e.mode==='scheduled'&&dateMillis(e.from)<=now&&now<dateMillis(e.to));
+ }).map(d=>({id:d.id,title:d.data().title,durationMinutes:d.data().durationMinutes,questions:d.data().questions,course:d.data().course}));
+ return {profile:{dni:p.dni,name:p.name,career:p.career||'',cycle:p.cycle||'',shift:p.shift||'',courses:p.courses||[]},exams};
 });

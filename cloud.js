@@ -6,11 +6,22 @@ let db,auth,ref,activeExamId;
 const ready=(async()=>{if(!configured)throw Error('Configura firebase-config.js');firebase.initializeApp(cfg);auth=firebase.auth();db=firebase.firestore();await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)})();ready.catch(()=>{});
 const normalize=(v)=>String(v||'').trim();
 const mapper=(snap)=>({id:snap.id,...snap.data(),startedMillis:snap.data().startedAt?.toMillis?.()||null});
-async function signIn(student,mode){await ready;const email=normalize(student.email).toLowerCase(),pass=student.password;if(mode==='register')await auth.signInWithEmailAndPassword(email,pass);else await auth.signInWithEmailAndPassword(email,pass);if(!auth.currentUser)throw Error('No se pudo autenticar');ref=db.collection('sessions').doc(activeExamId+'_'+auth.currentUser.uid)}
+const dniToEmail=dni=>`${dni}@acceso.examen.invalid`;
+let verified=null;
+async function signInDni(dni,password){
+ await ready;
+ if(!/^\d{8}$/.test(dni))throw Error('El DNI debe tener exactamente 8 dígitos');
+ await auth.signInWithEmailAndPassword(dniToEmail(dni),password);
+ if(!auth.currentUser)throw Error('No se pudo autenticar');
+ const data=(await firebase.app().functions('us-central1').httpsCallable('getMyAccess')({})).data;
+ if(data.profile.dni!==dni){await auth.signOut();throw Error('El DNI no coincide con la cuenta asignada')}
+ verified={...data,uid:auth.currentUser.uid};return data;
+}
 window.examCloud={
- async exams(){await ready;return (await db.collection("exams").where("status","==","published").get()).docs.map(d=>({id:d.id,...d.data()}));},
+ async identify(dni,password){return await signInDni(dni,password);},
  async begin(student,mode){
-  await signIn(student,mode);
+  if(!verified||!auth.currentUser||verified.uid!==auth.currentUser.uid||verified.profile.dni!==student.dni)throw Error('Primero valida tu DNI');
+  if(!verified.exams.some(e=>e.id===student.examId))throw Error('Evaluación no autorizada');
   activeExamId=student.examId;ref=db.collection("sessions").doc(activeExamId+"_"+auth.currentUser.uid);
   const callable=firebase.app().functions('us-central1').httpsCallable('startOrResume');
   await callable({examId:activeExamId});
