@@ -18,11 +18,13 @@ studentForm.addEventListener('submit',async e=>{
  try{
   // La cámara y fullscreen se solicitan desde el clic del usuario.
   await startCamera();await requestFullscreen();
-  const data={name:document.getElementById('fullName').value.trim(),code:document.getElementById('studentCode').value.trim(),group:document.getElementById('group').value.trim(),email:document.getElementById('studentEmail').value.trim(),password:document.getElementById('studentPassword').value};
+  const selectedExam=document.getElementById('examSelect');if(!selectedExam.value)throw Error('Selecciona una evaluación');
+  const exam=window.availableExams?.find(x=>x.id===selectedExam.value);if(!exam)throw Error('Evaluación no disponible');window.configureExam(exam);
+  const data={examId:selectedExam.value,name:document.getElementById('fullName').value.trim(),code:document.getElementById('studentCode').value.trim(),group:document.getElementById('group').value.trim(),email:document.getElementById('studentEmail').value.trim(),password:document.getElementById('studentPassword').value};
   const result=await window.examCloud.begin(data,document.getElementById('accountMode').value);
   if(result.state==='blocked'){startError.textContent='Esta cuenta ya finalizó el único intento. Contacta al docente.';window.stopExamMonitoring?.();return;}
   monitoringActive=true;startOverlay.classList.add('hidden');window.startExamClock(result.session);
-  if(result.state==='expired')showToast('Se agotaron los 30 minutos: se cerrará el intento.');
+  if(result.state==='expired')showToast('Se agotó el plazo: se cerrará el intento.');
   else if(result.state==='resume')showToast('Examen recuperado. El temporizador no se reinicia.');
  }catch(err){startError.textContent='No se pudo acceder: '+err.message;console.error(err);if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}}
  finally{startExamBtn.disabled=false}
@@ -35,3 +37,5 @@ document.addEventListener('visibilitychange',()=>{if(!monitoringActive||window.e
 window.addEventListener('blur',()=>{if(monitoringActive&&!window.examFinished)registerIncident('VENTANA SIN FOCO')});
 document.addEventListener('fullscreenchange',()=>{if(monitoringActive&&!window.examFinished&&!document.fullscreenElement){registerIncident('SALIDA DE PANTALLA COMPLETA');showToast('Regresa a pantalla completa')}});
 window.addEventListener('beforeunload',e=>{if(!monitoringActive||window.examFinished)return;e.preventDefault();e.returnValue=''})
+
+(async()=>{try{const exams=await window.examCloud.exams();window.availableExams=exams;const sel=document.getElementById('examSelect');sel.replaceChildren(new Option('Seleccione una evaluación',''));exams.forEach(x=>sel.add(new Option(x.title+' ('+x.durationMinutes+' min)',x.id)));if(!exams.length)document.getElementById('startError').textContent='Todavía no hay exámenes publicados. Solicita al docente que publique uno.';}catch(e){document.getElementById('startError').textContent='No se pudo cargar las evaluaciones: '+e.message;}})();

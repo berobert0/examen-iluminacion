@@ -9,8 +9,9 @@
 <div id="startOverlay" class="overlay">
   <div class="start-card">
     <div class="shield">💡</div><h1>Proyecto de Sistema de Iluminación</h1>
-    <p>Evaluación de diseño, cálculo, eficiencia y seguridad. <strong>Duración: 30 minutos.</strong> Un solo intento por DNI autorizado y cuenta asignada. Si sales, puedes regresar, pero el reloj NO se reinicia.</p>
+    <p>Selecciona la evaluación autorizada. La duración la configura el docente. Un solo intento por DNI autorizado y cuenta asignada. Si sales, puedes regresar, pero el reloj NO se reinicia.</p>
     <form id="studentForm" autocomplete="on">
+<label class="field-label" for="examSelect">Evaluación autorizada *</label><select class="student-input" id="examSelect" required><option value="">Cargando evaluaciones...</option></select>
       <label class="field-label" for="studentEmail">Correo del estudiante (cuenta de acceso) *</label><input class="student-input" type="email" id="studentEmail" required autocomplete="email" placeholder="estudiante@correo.com">
       <label class="field-label" for="studentPassword">Contraseña (mínimo 6 caracteres) *</label><input class="student-input" type="password" id="studentPassword" minlength="6" required autocomplete="current-password">
       <label class="field-label" for="accountMode">Tipo de acceso *</label><select class="student-input" id="accountMode"><option value="login">Ingresar con cuenta asignada / continuar intento</option></select>
@@ -18,7 +19,7 @@
       <label class="field-label" for="studentCode">Código / DNI del estudiante *</label><input class="student-input" id="studentCode" name="studentCode" required minlength="4" maxlength="25" placeholder="Código de estudiante">
       <label class="field-label" for="group">Grado, sección o grupo *</label><input class="student-input" id="group" name="group" required maxlength="60" placeholder="Ej.: 5° B / Electricidad">
       <div class="requirements"><div>✓ Solicita permiso de cámara y pantalla completa</div><div>✓ Registra cambios de pestaña y salidas de pantalla completa</div><div>✓ Bloqueo básico de copiar, pegar, imprimir y menú contextual</div><div>✓ Cierre automático al cumplirse 30 minutos</div></div>
-      <label class="consent"><input id="consentCheck" type="checkbox" required><span>Acepto el uso de la cámara durante la prueba y el almacenamiento en Firebase de mi identificación, respuestas e incidencias para revisión docente. La cámara no se graba ni se envía. Mi intento durará 30 minutos aunque cierre la página. La vista previa de cámara no se graba ni se envía.</span></label>
+      <label class="consent"><input id="consentCheck" type="checkbox" required><span>Acepto el uso de la cámara durante la prueba y el almacenamiento en Firebase de mi identificación, respuestas e incidencias para revisión docente. La cámara no se graba ni se envía. Mi intento conservará el tiempo configurado por el docente aunque cierre la página. La vista previa de cámara no se graba ni se envía.</span></label>
       <p id="startError" class="error" role="alert"></p>
       <button type="submit" id="startExamBtn" class="btn primary large">Entrar / continuar examen</button>
     </form>
