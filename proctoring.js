@@ -2,11 +2,11 @@ window.proctoringIncidents=[];window.examFinished=false;
 const consentCheck=document.getElementById('consentCheck'),studentForm=document.getElementById('studentForm'),startExamBtn=document.getElementById('startExamBtn'),startOverlay=document.getElementById('startOverlay'),securityOverlay=document.getElementById('securityOverlay'),cameraPreview=document.getElementById('cameraPreview'),cameraDot=document.getElementById('cameraDot'),cameraStatus=document.getElementById('cameraStatus'),incidentCount=document.getElementById('incidentCount'),securityBadge=document.getElementById('securityBadge'),startError=document.getElementById('startError'),toast=document.getElementById('toast');
 let monitoringActive=false,cameraStream=null,lastIncident={};
 const accountMode=document.getElementById('accountMode');
-accountMode.addEventListener('change',()=>{
- const login=accountMode.value==='login';
+accountMode.value='login';accountMode.addEventListener('change',()=>{
+ const login=true;
  for(const id of ['fullName','studentCode','group']){const el=document.getElementById(id);el.required=!login;el.disabled=login;}
- startExamBtn.textContent=login?'Continuar mi único intento':'Crear cuenta e iniciar examen';
-});
+ startExamBtn.textContent='Acceder o continuar intento';
+});accountMode.dispatchEvent(new Event('change'));
 
 function showToast(m){toast.textContent=m;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
 function registerIncident(type,details=''){if(!monitoringActive||window.examFinished)return;const now=Date.now();if(lastIncident[type]&&now-lastIncident[type]<1200)return;lastIncident[type]=now;const ev={type,details,time:new Date().toISOString()};window.proctoringIncidents.push(ev);window.examCloud?.incident(ev).catch(err=>{console.error('Error guardando incidencia',err);showToast('Error al enviar incidencia. Revisa la conexión.');});incidentCount.textContent=window.proctoringIncidents.length;const c=window.proctoringIncidents.length;if(c>=6){securityBadge.textContent='Revisar';securityBadge.className='badge danger'}else if(c>=2){securityBadge.textContent='Atención';securityBadge.className='badge warning'}showToast('Incidencia registrada: '+type)}
